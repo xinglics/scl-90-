@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCL-90 测评系统 - 验证</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f2f5; margin: 0; }
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; width: 320px; }
+        input { padding: 12px; width: 80%; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; outline: none; }
+        input:focus { border-color: #007bff; }
+        button { background: #007bff; color: white; border: none; padding: 12px 30px; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%; transition: 0.3s; }
+        button:hover { background: #0056b3; }
+        .error { color: #e74c3c; font-size: 14px; margin-top: 15px; display: none; background: #ffe6e6; padding: 10px; border-radius: 4px; }
+        .info { color: #666; font-size: 0.85em; margin-bottom: 20px; text-align: left; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>SCL-90 专业测评</h2>
+        <div class="info">
+            ⚠️ <strong>注意事项：</strong><br>
+            1. 本测试码仅限<strong>一台设备</strong>使用。<br>
+            2. 激活后<strong>24小时内有效</strong>。<br>
+            3. 请勿清除浏览器缓存，否则将导致失效。
+        </div>
+        <input type="text" id="accessCode" placeholder="请输入授权码 (不区分大小写)">
+        <button onclick="verify()">立即开始</button>
+        <div id="errorMsg" class="error"></div>
+    </div>
+
+    <script>
+        // 你的有效码库 (实际售卖时，把生成的码填在这里)
+        const validCodes = [
+            "SCL-NXN4H67Z",
+"SCL-V3EGVSTR",
+"SCL-NKWJG7C7",
+"SCL-ZQDSRRX8",
+"SCL-R7RRHS3P",
+"SCL-LUJXAHYE",
+"SCL-FZ8H48MK",
+"SCL-J5WGVFNQ",
+"SCL-637MYE8Q",
+"SCL-6Z48YQ3Y",
+"SCL-LTXBJKN5",
+"SCL-UZ22AWHC",
+"SCL-5LNG7Z63",
+"SCL-TC22BJAF",
+"SCL-7CCDX6X2",
+"SCL-5KK3J374",
+"SCL-LYPGGUKT",
+"SCL-3EDWYCW7",
+"SCL-U2EP82LH",
+"SCL-2TTL2F5R",
+"SCL-3UKZNQSY",
+"SCL-J9EU7S76",
+"SCL-H9JX7J2D",
+"SCL-YEHMXMSA",
+"SCL-46DL2Z6E",
+"SCL-EFQ3SCJK",
+"SCL-CH4KB348",
+"SCL-VYLS2EUH",
+"SCL-5CZ4LPUU",
+"SCL-Y7PTEBVU",
+"SCL-DTL5MB9M",
+"SCL-2GZPGU52",
+"SCL-C3TH94G5",
+"SCL-2DWTDKS2",
+"SCL-Y3L3SMEF",
+"SCL-G2LAHTND",
+"SCL-5TK4XZJ4",
+"SCL-7WUKLGYV",
+"SCL-9DEHQAH2",
+"SCL-TBTEJYMX",
+"SCL-BB5MNHCF",
+"SCL-TMGU8ENZ",
+"SCL-H8TNP5GJ",
+"SCL-HK4LQVK5",
+"SCL-WPZVTFA7",
+"SCL-LVCAACH9",
+"SCL-5Q5KFY59",
+"SCL-3WUZ3VF6",
+"SCL-BPS8K5TB",
+"SCL-MM44ZH7R",
+"SCL-MHU4PU53",
+"SCL-8JF8SS9S",
+"SCL-SF34RCQ8",
+"SCL-DDD7Z532",
+"SCL-GPTNCELD",
+"SCL-594TFMAU",
+"SCL-37QSTAQL",
+"SCL-MYPDR7KD",
+"SCL-WGQ9B83Z",
+"SCL-KD94UY6W",
+"SCL-FJVJ9EKK",
+"SCL-HHU74XJ9",
+"SCL-DCUN83AP",
+"SCL-GTW3Z4QN",
+"SCL-CRRBD2XR",
+"SCL-9ZK2MT3M",
+"SCL-92ALK3CV",
+"SCL-YC4B7JBP",
+"SCL-5NY3ZNB5",
+"SCL-843YDHL8",
+"SCL-3GL5UJE2",
+"SCL-DX7AMAT8",
+"SCL-SBUJ6HJG",
+"SCL-V6UWEEBT",
+"SCL-8MVMBBL7",
+"SCL-NZBHBYN3",
+"SCL-64LPMJG6",
+"SCL-Q7RW994P",
+"SCL-LEKE2BMH",
+"SCL-S3M9ECX5",
+"SCL-83X4N8B9",
+"SCL-JQ89NS7K",
+"SCL-765N5VGG",
+"SCL-K8PG2QYR",
+"SCL-R8EKJX45",
+"SCL-UHRJ4ED3",
+"SCL-VBDJJE8B",
+"SCL-Y32XZH9Z",
+"SCL-YNS88JJG",
+"SCL-PQTBTZWE",
+"SCL-3FAHZAG3",
+"SCL-6XEFQL2Q",
+"SCL-PZMHNVNU",
+"SCL-AWJR6QV2",
+"SCL-C38YFQWT",
+"SCL-57FQ3RDW",
+"SCL-2C3WJM5E",
+"SCL-PG6685TX",
+"SCL-7AMXYSME",
+"SCL-N7P25EYP",
+"SCL-L3ZT4AWB",
+"SCL-KMHS3GRV",
+"SCL-2Q24F67P",
+"SCL-MCREVSZ8",
+"SCL-4WSHF5ZE",
+"SCL-EGQ6CQPJ",
+"SCL-C5UYTJSL",
+"SCL-T4L4PMAL",
+"SCL-VZ7CVETZ",
+"SCL-Y2LHMXK5",
+"SCL-XLBVUCLK",
+"SCL-JJPBUU4L",
+"SCL-MVAW8PTX",
+"SCL-4782V39V",
+"SCL-MCCWKEW2",
+"SCL-2D7RFN3K",
+"SCL-2FY5FBT5",
+"SCL-T97BC5JH",
+"SCL-6CR65G3E",
+"SCL-9KA4JR7X",
+"SCL-QH7LM5SV",
+"SCL-5MCMRX2L",
+"SCL-AVXXC87F",
+"SCL-3HCDECMY",
+"SCL-9YDJ93F6",
+"SCL-X4SWK8TE",
+"SCL-R5DVQQY9",
+"SCL-PCTBQMM2",
+"SCL-CDYZJYV2",
+"SCL-6ZHFL4Z9",
+"SCL-VKAWT5T5",
+"SCL-TE8MV9L8",
+"SCL-2WWUQ9ZF",
+"SCL-45K66L4F",
+"SCL-TNN2EFEW",
+"SCL-F9G3ZQF8",
+"SCL-XW69XFBY",
+"SCL-YAHBRSG4",
+"SCL-3RQTF6G6",
+"SCL-MNR73WYY",
+"SCL-YKXYMPLM",
+"SCL-4PU3SSAZ",
+"SCL-TQMTDMZJ",
+"SCL-ZG5ZN5RB",
+"SCL-L7VR2VYF",
+"SCL-A2EEEJ55",
+"SCL-VMQPDFTA",
+"SCL-A6YDAW7P",
+"SCL-PERAC9N7",
+"SCL-8QL8RGJN",
+"SCL-RVF27T4F",
+"SCL-AXT8AXD2",
+"SCL-LG9MX2HW",
+"SCL-SV23BENV",
+"SCL-MUK8BGDV",
+"SCL-57A5ANDG",
+"SCL-VUQPBXX3",
+"SCL-7TAKCEMY",
+"SCL-E7EYFWNA",
+"SCL-RPMQ6CMB",
+"SCL-JM6VQWKA",
+"SCL-XQ5SEE75",
+"SCL-59TMPBLU",
+"SCL-RQ6MRXNZ",
+"SCL-HACHAX7H",
+"SCL-RU3U5NKS",
+"SCL-SMAJ5UU8",
+"SCL-NA4H3ZMG",
+"SCL-P8KJM9H8",
+"SCL-8XTJZRSS",
+"SCL-CFPNCWXJ",
+"SCL-U33D4V92",
+"SCL-FNFKCGMW",
+"SCL-MJDJRJPD",
+"SCL-AGXP9KPK",
+"SCL-RJCEKDAR",
+"SCL-BUFY3ZZE",
+"SCL-LHFNSMME",
+"SCL-C2RHMS64",
+"SCL-HV3YP4WX",
+"SCL-CQD4TUUX",
+"SCL-KEQC5RWM",
+"SCL-5HMKZBTS",
+"SCL-RX6ZKZG9",
+"SCL-Z7NH2328",
+"SCL-RCCDHP89",
+"SCL-WV9R3NX6",
+"SCL-HA8XKANU",
+"SCL-RA4Y8KGJ",
+"SCL-S8NVCS32",
+"SCL-VXLX7THJ",
+"SCL-LNEAB7D5",
+"SCL-33A2VVBG",
+"SCL-D3GA9736",
+"SCL-769BKBY5",
+"SCL-WHZ3ZNLQ",
+"SCL-7JHMSGUT",
+"SCL-4S46D7AZ",
+"SCL-RAGGV33Y",
+"SCL-LRJWN52E"
+        ];
+
+        function verify() {
+            const input = document.getElementById('accessCode').value.trim().toUpperCase(); // 自动转大写
+            const errorDiv = document.getElementById('errorMsg');
+            const now = new Date().getTime();
+
+            // 1. 检查浏览器里是否已经存了“旧的登录信息”
+            const savedCode = localStorage.getItem('scl90_active_code');
+            const savedTime = localStorage.getItem('scl90_start_time');
+
+            // 如果以前登录过，先检查是否过期
+            if (savedCode && savedTime) {
+                const timePassed = now - parseInt(savedTime);
+                const hoursPassed = timePassed / (1000 * 60 * 60);
+
+                // 如果已经登录过，且输入的码和存的码不一样 (试图换个码，或者重新输入)
+                if (input === savedCode) {
+                    if (hoursPassed > 24) {
+                        showError("您的授权码已过期（超过24小时）。请购买新的授权码。");
+                        return;
+                    } else {
+                        // 没过期，直接放行
+                        window.location.href = 'test.html';
+                        return;
+                    }
+                }
+            }
+
+            // 2. 如果是第一次输入，或者输入新码：验证码是否存在库中
+            if (validCodes.includes(input)) {
+                // 这里有一个逻辑漏洞：如果不联网，我们无法知道隔壁老王是不是也在用这个码。
+                // 但我们会把这个码“锁死”在当前浏览器。
+                
+                // 写入当前时间、当前码
+                localStorage.setItem('scl90_active_code', input);
+                localStorage.setItem('scl90_start_time', now.toString());
+                
+                // 授权标识
+                sessionStorage.setItem('isAuthorized', 'true');
+                
+                window.location.href = 'test.html';
+            } else {
+                showError("无效的授权码，请检查输入。");
+            }
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('errorMsg');
+            el.innerText = msg;
+            el.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCL-90 专业测评报告</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #f4f7f6; padding: 20px; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h1 { text-align: center; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+        .meta-info { text-align: center; color: #777; font-size: 0.9em; margin-bottom: 30px; }
+        
+        /* 总分卡片 */
+        .summary-card { background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 30px; border: 1px solid #e9ecef; }
+        .score-big { font-size: 2.5em; font-weight: bold; color: #0056b3; display: block; }
+        .status-tag { display: inline-block; padding: 5px 15px; border-radius: 20px; color: white; font-size: 0.9em; margin-top: 10px; }
+        .bg-green { background: #28a745; }
+        .bg-red { background: #dc3545; }
+
+        /* 建议区域 */
+        .analysis-section { margin-top: 40px; }
+        .advice-item { margin-bottom: 20px; padding: 15px; border-radius: 6px; background: #fff; border: 1px solid #eee; }
+        .advice-item.warning { border-left: 5px solid #e74c3c; background: #fff5f5; } 
+        .advice-item.normal { border-left: 5px solid #28a745; }
+        .advice-title { font-weight: bold; font-size: 1.1em; margin-bottom: 5px; display: flex; justify-content: space-between; }
+        
+        .btn-print { display: block; width: 200px; margin: 40px auto 0; padding: 12px; background: #333; color: white; text-align: center; border-radius: 5px; text-decoration: none; cursor: pointer; }
+        .btn-print:hover { background: #000; }
+        
+        /* 图表居中 */
+        .chart-container { width: 100%; max-width: 600px; margin: 0 auto; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>SCL-90 心理健康分析报告</h1>
+    <div class="meta-info">测评时间：<span id="test-date">--</span></div>
+
+    <div class="summary-card">
+        您的总分
+        <span class="score-big" id="total-score">0</span>
+        <div id="total-status-box"></div>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="radarChart"></canvas>
+    </div>
+
+    <div class="analysis-section">
+        <h2>详细因子解读与建议</h2>
+        <div id="advice-list"></div>
+    </div>
+
+    <div class="btn-print" onclick="window.print()">保存/打印报告</div>
+</div>
+
+<script>
+    try {
+        // --- 1. 数据读取与基础校验 ---
+        const dataStr = localStorage.getItem('scl90_results');
+        if(!dataStr) {
+            alert("暂无测试数据，请返回首页测试。");
+            window.location.href = 'index.html';
+            throw new Error("No data");
+        }
+        const data = JSON.parse(dataStr);
+
+        // --- 2. 渲染顶部文字信息 ---
+        document.getElementById('test-date').textContent = data.date || new Date().toLocaleDateString();
+        document.getElementById('total-score').textContent = data.totalScore;
+
+        const statusBox = document.getElementById('total-status-box');
+        if (data.totalScore > 160) {
+            statusBox.innerHTML = `<span class="status-tag bg-red">需关注 (阳性)</span><p style="margin-top:10px; color:#666">您的总分略高于常模，建议关注近期心理状态。</p>`;
+        } else {
+            statusBox.innerHTML = `<span class="status-tag bg-green">心理健康状况良好</span><p style="margin-top:10px; color:#666">您的各项指标均在正常范围内。</p>`;
+        }
+
+        // --- 3. 准备建议文案库 ---
+        const adviceDB = {
+            "躯体化": "建议：最近是否感到身体疲惫？请排除生理疾病后，尝试规律作息和有氧运动。",
+            "强迫症状": "建议：如果是反复检查或无法摆脱的念头，请尝试'顺其自然'，不要刻意对抗。",
+            "人际关系敏感": "建议：尝试建立自信，不要过分在意他人的评价，多关注自己的优点。",
+            "抑郁": "建议：如果感到情绪低落，请试着向亲友倾诉，或每天记录三件开心的小事。",
+            "焦虑": "建议：感到紧张时，试着做三次深呼吸（吸气4秒，呼气8秒）。",
+            "敌对": "建议：遇到冲突时先离开现场，等情绪平复后再沟通。",
+            "恐怖": "建议：尝试分级暴露法，慢慢接近让你害怕的事物。",
+            "偏执": "建议：试着信任他人，不要总是把别人的意图往坏处想。",
+            "精神病性": "建议：如果感到思维混乱或听到奇怪的声音，请务必咨询专业医生。",
+            "其他(睡眠/饮食)": "建议：保持规律的饮食和睡眠习惯是心理健康的基础。"
+        };
+
+        // --- 4. 准备图表数据 & 生成列表 ---
+        const listDiv = document.getElementById('advice-list');
+        const labels = [];
+        const chartScores = [];
+        const pointColors = []; 
+
+        const scoresObj = data.factorScores || {};
+
+        for (const [factor, score] of Object.entries(scoresObj)) {
+            labels.push(factor);
+            chartScores.push(score);
+            
+            const scoreNum = parseFloat(score);
+            const isWarning = scoreNum >= 2;
+
+            // 颜色逻辑：警告用柔和红，正常用专业蓝绿
+            // 这种配色比纯红纯绿更高级
+            if (isWarning) {
+                pointColors.push('#ff6b6b'); // 柔和红
+            } else {
+                pointColors.push('#4ecdc4'); // 柔和青
+            }
+            
+            // 渲染建议卡片
+            const itemHtml = `
+                <div class="advice-item ${isWarning ? 'warning' : 'normal'}">
+                    <div class="advice-title">
+                        <span>${factor}</span>
+                        <span style="color:${isWarning ? '#e74c3c' : '#28a745'}">得分: ${score}</span>
+                    </div>
+                    <p style="margin:5px 0 0; color:#555; font-size:0.95em;">${isWarning ? adviceDB[factor] : '该维度状态良好，请继续保持。'}</p>
+                </div>
+            `;
+            listDiv.innerHTML += itemHtml;
+        }
+
+        // --- 5. 绘制高级美化版雷达图 ---
+        const ctx = document.getElementById('radarChart').getContext('2d');
+        
+        // 创建渐变填充色 (让图表看起来有立体感)
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(54, 162, 235, 0.6)'); // 顶部颜色深
+        gradient.addColorStop(1, 'rgba(54, 162, 235, 0.1)'); // 底部颜色浅
+
+        new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '因子得分',
+                    data: chartScores,
+                    // 样式配置
+                    backgroundColor: gradient, // 使用渐变色
+                    borderColor: 'rgba(54, 162, 235, 1)', // 边框线用实心蓝
+                    borderWidth: 2,
+                    
+                    // 点的样式
+                    pointBackgroundColor: pointColors, // 红/绿填充
+                    pointBorderColor: '#fff',          // 白色边框 (让点浮起来)
+                    pointBorderWidth: 2,               // 边框厚度
+                    pointRadius: 6,                    // 点稍微大一点
+                    pointHoverRadius: 8,
+                    
+                    // 线条平滑度 (0是折线，0.4是曲线)
+                    tension: 0.3 
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    r: {
+                        angleLines: { 
+                            display: true,
+                            color: '#eee' // 放射线淡一点
+                        },
+                        grid: {
+                            color: '#eee' // 圈圈线淡一点
+                        },
+                        pointLabels: {
+                            font: {
+                                size: 12,
+                                family: "'Microsoft YaHei', sans-serif",
+                                weight: 'bold'
+                            },
+                            color: '#333' // 标签文字颜色
+                        },
+                        min: 0, 
+                        max: 5,
+                        ticks: {
+                            stepSize: 1,
+                            display: false // 隐藏刻度数字(1,2,3)，让图更干净
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+    } catch (e) {
+        console.error(e);
+        alert("页面加载异常，建议刷新重试");
+    }
+</script>
+
+</body>
+</html>
